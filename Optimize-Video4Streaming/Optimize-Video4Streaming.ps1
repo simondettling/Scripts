@@ -19,9 +19,9 @@
     Specify the Audio Codec. (Default value will be copied from source)
 .NOTES
     Name:      Optimize-Video4Streaming.ps1
-    Modified:  2017-04-29
+    Modified:  2019-09-08
     Author:    @SimonDettling
-    Version:   3.0.0
+    Version:   4.0.0
 #>
 
 [CmdletBinding()]
@@ -50,6 +50,8 @@ param(
     [string] $videoCodec = 'copy'
 )
 
+Import-Module BitsTransfer
+
 # Get all movie files from source folder
 $files = Get-ChildItem -Path $sourceFolder -Recurse -Force -Include '*.3g2','*.3gp','*.3gpp','*.asf','*.avi','*.divx','*.f4v','*.flv','*.h264','*.ifo','*.m2ts','*.m4v','*.mkv','*.mod','*.mov','*.mp4','*.mpeg','*.mpg','*.mswmm','*.mts','*.mxf','*.ogv','*.rm','*.swf','*.ts','*.vep','*.vob','*.webm','*.wlmp','*.wmv'
 
@@ -66,7 +68,11 @@ If ($ffmpegExe -eq '') {
 
     # Download ffmpeg to temp path
     Write-Progress -Activity "Downloading ffmpeg"
+
+    # Disabling the Download Progress, which speeds up the download
+    $ProgressPreference = 'SilentlyContinue'
     Invoke-WebRequest -Uri $ffmpegDownloadUrl -OutFile $tmpDownloadFile
+    $ProgressPreference = 'Continue'
 
     # Extract downloaded ffmpeg archive
     Expand-Archive -LiteralPath $tmpDownloadFile -DestinationPath $tmpPath -Force
@@ -97,16 +103,22 @@ foreach ($file in $files) {
 
     # Build ffmpeg export filename
     Write-Progress -Activity "Converting file '$fileName'" -Status "$i / $($files.Count)"
-    $ffmpegOutFile = $destinationFolder + "${fileName}.mp4"
+    $ffmpegOutFile = [System.IO.Path]::GetTempPath() + "${fileName}.mp4"
 
     # Execute ffmpeg using -sn to remove the subtitle stream if present
     # -map 0:v:0 -map 0:m:language:eng
-   $returnCode = Start-Process -FilePath $ffmpegExe -ArgumentList "-i `"$fileNameFull`" -y -movflags faststart -c:a $audioCodec $extensionAttributes -c:v $videoCodec -sn `"$ffmpegOutFile`"" -PassThru -Wait
+   $returnCode = Start-Process -FilePath $ffmpegExe -ArgumentList "-i `"$fileNameFull`" -y -movflags faststart -map 0 -acodec $audioCodec $extensionAttributes -vcodec $videoCodec -sn `"$ffmpegOutFile`"" -PassThru -Wait
 
     # Validate return code
     If ($returnCode.ExitCode -ne 0) {
         throw "ffmpeg failed with code $($returnCode.ExitCode) at file '$fileNameFull'"
     }
+
+    # Copy new file from tmp to destination
+    Start-BitsTransfer -Source $ffmpegOutFile -Destination "$($destinationFolder)${fileName}.mp4" -Description "Copy File '$($fileName).mp4' to $destinationFolder"
+
+    # Remove new file from tmp
+    Remove-Item -Path $ffmpegOutFile
 
     $i++
 }
