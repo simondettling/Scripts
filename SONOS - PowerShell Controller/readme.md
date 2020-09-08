@@ -14,3 +14,5 @@ SONOS Controller written in PowerShell that can be used to automate your SONOS S
 * Set Volume
 
 The Documentation can be found on my blog: http://msitproblog.com/2016/01/04/hacking-sonos-using-windows-powershell/
+
+![alt text](http://msitproblog.com/wp-content/uploads/2016/01/SONOS_Part3.png)
