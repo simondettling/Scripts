@@ -1,0 +1,57 @@
+<job id="Action-ResetOfficeCMID">
+<script language="VBScript" src="..\..\Scripts\ZTIUtility.vbs"/>
+<script language="VBScript">
+
+'//----------------------------------------------------------------------------
+'// Purpose: Re-arms an Office 2013 / 2016 Installation
+'// Usage: cscript Action-ResetOfficeCMID.wsf [/debug:true]
+'// Version: 1.0 - 02. November 2015
+'// Author: Simon Dettling <http://msitproblog.com>
+'// Main script logic is based on LTISysprep.wsf
+'//
+'// This script is provided "AS IS" with no warranties.
+'//----------------------------------------------------------------------------
+
+Option Explicit
+Dim iRetVal
+
+'On Error Resume Next
+iRetVal = ZTIProcess
+ProcessResults iRetVal
+On Error Goto 0
+
+'//---------------------------------------------------------------------------
+'//
+'// Function: ZTIProcess()
+'//
+'//---------------------------------------------------------------------------
+Function ZTIProcess()
+	Dim sOSPPPath
+
+	oLogging.CreateEntry oUtility.ScriptName & ": Starting", LogTypeInfo
+
+	'// Searching for Office 2013 / 2016 installations
+	'// NOTE: Office 2010 will be re-armed by LTISysprep.wsf
+	For each sOSPPPath in Array(oEnvironment.Substitute("%ProgramFiles%\Microsoft Office\Office16\OSPPREARM.EXE"), oEnvironment.Substitute("%ProgramFiles(x86)%\Microsoft Office\Office16\OSPPREARM.EXE"), oEnvironment.Substitute("%ProgramFiles%\Microsoft Office\Office15\OSPPREARM.EXE"), oEnvironment.Substitute("%ProgramFiles(x86)%\Microsoft Office\Office15\OSPPREARM.EXE"))
+		If oFSO.FileExists(sOSPPPath) then
+			oLogging.CreateEntry oUtility.ScriptName & " Re-arming Office using the following executable: '" & sOSPPPath & "'" , LogTypeInfo
+			
+			'// Running OSPPREARM
+			iRetVal = oUtility.RunWithConsoleLogging("""" & sOSPPPath & """")
+			
+			'// Validate Exit Code
+			If iRetVal = 0 then
+				oLogging.CreateEntry "Re-armed Office successfully, Return Code = 0", LogTypeInfo
+				ZTIProcess = Success
+			Else
+				oLogging.CreateEntry "Unexpected return code while re-arming Office, Return Code = " & iRetVal, LogTypeError
+				ZTIProcess = Failure
+			End if
+		End if
+	Next
+
+	oLogging.CreateEntry oUtility.ScriptName & ": Finished", LogTypeInfo
+End Function
+
+</script>
+</job>

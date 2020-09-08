@@ -1,0 +1,83 @@
+<job id="Install-App-V51_Client">
+<script language="VBScript" src="..\..\scripts\ZTIUtility.vbs"/>
+<script language="VBScript">
+
+'//----------------------------------------------------------------------------
+'// Purpose: Used to install the App-V 5.1 Client + Hotfix
+'// Usage: cscript "Install-App-V51_Client.wsf" [/debug:true]
+'// Version: 1.0 - 02. March 2016 - @SimonDettling <msitproblog.com>
+'//
+'// This script is provided "AS IS" with no warranties
+'//----------------------------------------------------------------------------
+
+Option Explicit
+Dim iRetVal
+
+'On Error Resume Next
+iRetVal = ZTIProcess
+ProcessResults iRetVal
+On Error Goto 0
+
+'//---------------------------------------------------------------------------
+'// Function: ZTIProcess()
+'//---------------------------------------------------------------------------
+Function ZTIProcess()
+
+	oLogging.CreateEntry oUtility.ScriptName & ": Starting installation", LogTypeInfo
+
+	Dim sInstaller
+	Dim sHotfix
+
+	sInstaller = oUtility.ScriptDir & "\Source\appv_client_setup.exe"
+	sHotfix = oUtility.ScriptDir & "\Source\AppV5.1RTM_Client_KB3139245.exe"
+
+	'// Disable Zone Checks
+	oEnv("SEE_MASK_NOZONECHECKS") = 1
+
+	'// Check if Installer exists
+	If not oFSO.FileExists(sInstaller) then
+		oLogging.CreateEntry oUtility.ScriptName & " " & sInstaller & " was not found, unable to Install", LogTypeError
+		ZTIProcess = Failure
+		Exit Function
+	End if
+
+	'// Check if Hotfix exists
+	If not oFSO.FileExists(sHotfix) then
+		oLogging.CreateEntry oUtility.ScriptName & " " & sHotfix & " was not found, unable to Install", LogTypeError
+		ZTIProcess = Failure
+		Exit Function
+	End if
+
+	'// Run Installer
+	iRetVal = oUtility.RunWithHeartbeat(sInstaller & " /q /norestart /ACCEPTEULA /log C:\Windows\Logs\App-V51_Client_Install.log")
+
+	'// Validate exit code
+	if (iRetVal = 0) or (iRetVal = 3010) then
+		ZTIProcess = Success
+	Else
+		ZTIProcess = Failure
+	End If
+
+	oLogging.CreateEntry oUtility.ScriptName & ": Return code from command = " & iRetVal, LogTypeInfo
+	oLogging.CreateEntry oUtility.ScriptName & ": Finished installation", LogTypeInfo
+
+	'// Run Hotfix
+	iRetVal = oUtility.RunWithHeartbeat(sHotfix & " /q /norestart /ACCEPTEULA /log C:\Windows\Logs\App-V51_Client_Hotifx.log")
+
+	'// Validate exit code
+	if (iRetVal = 0) or (iRetVal = 3010) then
+		ZTIProcess = Success
+	Else
+		ZTIProcess = Failure
+	End If
+
+	'/// Enable Zone Checks
+	oEnv.Remove("SEE_MASK_NOZONECHECKS")
+
+	oLogging.CreateEntry oUtility.ScriptName & ": Return code from command = " & iRetVal, LogTypeInfo
+	oLogging.CreateEntry oUtility.ScriptName & ": Finished installation", LogTypeInfo
+
+End Function
+
+</script>
+</job>
